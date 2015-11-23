@@ -575,7 +575,16 @@ static uint32_t
 allocate_block(void)
 {
 	/* EXERCISE: Your code here */
-	return 0;
+
+	int i = 2;
+	for (; i < ospfs_super->os_nblocks; i++) {
+		if (bitvector_test(i) == 0) { // If bit i is empty
+			bitvector_set(i);
+			return i;
+		}
+	}
+
+	return 0; // If no empty bits exist
 }
 
 
@@ -594,6 +603,8 @@ static void
 free_block(uint32_t blockno)
 {
 	/* EXERCISE: Your code here */
+	
+	bitvector_clear(blockno);
 }
 
 
