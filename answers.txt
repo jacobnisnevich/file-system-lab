@@ -11,14 +11,14 @@
 # information you'd like us to know, please add it at the end of the file.
 
 # Partner 1
-Name: 
-Student ID: 
-Email: 
+Name: Jacob Nisnevich
+Student ID: 804275355
+Email: jnisnevich@ucla.edu
 
 # Partner 2 (if you're working in a team)
-Name: 
-Student ID: 
-Email: 
+Name: Alex Crosthwaite
+Student ID: 704278019
+Email: abcrosthwaite@ucla.edu
 
 # Extra credit problems
 #Extra credit problem: none
