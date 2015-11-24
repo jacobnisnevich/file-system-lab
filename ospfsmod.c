@@ -453,7 +453,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 *
 		 * EXERCISE: Your code here */
 
-		if ((f_pos - 2)* OSPFS_DIRENTRY_SIZE >= dir_oi->oi_size) {
+		if ((f_pos - 2) * OSPFS_DIRENTRY_SIZE >= dir_oi->oi_size) {
 			r = 1;
 			break;
 		}
@@ -586,7 +586,7 @@ allocate_block(void)
 	uint32_t block = OSPFS_FREEMAP_BLK;
 	void* bitvector = ospfs_block(block);	
 
-	int i = OSPFS_FREEMAP_BLK;
+	uint32_t i = OSPFS_FREEMAP_BLK;
 	for (; i < ospfs_super->os_nblocks; i++) {
 		if (bitvector_test(bitvector, i) == 1) { // If bit i is empty
 			bitvector_clear(bitvector, i);
@@ -652,7 +652,10 @@ free_block(uint32_t blockno)
 static int32_t
 indir2_index(uint32_t b)
 {
-	// Your code here.
+	if (b >= OSPFS_NDIRECT + OSPFS_NINDIRECT)
+	{
+		return 0;
+	}
 	return -1;
 }
 
@@ -671,7 +674,18 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-	// Your code here.
+	if (b >= OSPFS_NDIRECT + OSPFS_NINDIRECT)
+	{
+		// Doubly indirect
+		uint32_t blockno = b - (OSPFS_NDIRECT + OSPFS_NINDIRECT);
+		return blockno / OSPFS_NINDIRECT;
+	}
+	else if (b >= OSPFS_NDIRECT)
+	{
+		// Singly indirect
+		return 0;
+	}
+	// Direct 
 	return -1;
 }
 
@@ -688,8 +702,19 @@ indir_index(uint32_t b)
 static int32_t
 direct_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+	if (b >= OSPFS_NDIRECT + OSPFS_NINDIRECT)
+	{
+		// Doubly indirect
+		uint32_t blockno = b - (OSPFS_NDIRECT + OSPFS_NINDIRECT);
+		return blockno % OSPFS_NINDIRECT;
+	}
+	else if (b >= OSPFS_NDIRECT)
+	{
+		// Singly indirect
+		return b - OSPFS_NDIRECT;
+	}
+	// Direct 
+	return b;
 }
 
 
@@ -892,8 +917,8 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 	/* EXERCISE: Your code here */
 
 	// Make sure we arent trying to read more than is left in the file
-	size_t bytes_left_in_file = (size_t) oi->oi_size - *f_pos;
-	if (bytes_left_in_file > count)
+	size_t bytes_left_in_file = (size_t) (oi->oi_size) - *f_pos;
+	if (count > bytes_left_in_file)
 	{
 		count = bytes_left_in_file;
 	}
@@ -918,7 +943,6 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		// Use variable 'n' to track number of bytes moved.
 		/* EXERCISE: Your code here */
 		uint32_t offset = *f_pos % OSPFS_BLKSIZE;
-
 		if (offset != 0)
 		{
 			// We are reading from the middle of the block
@@ -967,7 +991,6 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 			}
 			n = OSPFS_BLKSIZE;
 		}
-
 		buffer += n;
 		amount += n;
 		*f_pos += n;
