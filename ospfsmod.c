@@ -578,10 +578,10 @@ allocate_block(void)
 	uint32_t block = OSPFS_FREEMAP_BLK;
 	void* bitvector = ospfs_block(block);	
 
-	int i = 2;
+	int i = OSPFS_FREEMAP_BLK;
 	for (; i < ospfs_super->os_nblocks; i++) {
 		if (bitvector_test(bitvector, i) == 0) { // If bit i is empty
-			bitvector_set(bitvector, i);
+			bitvector_clear(bitvector, i);
 			return i;
 		}
 	}
@@ -608,7 +608,7 @@ free_block(uint32_t blockno)
 	uint32_t block = OSPFS_FREEMAP_BLK;
 	void* bitvector = ospfs_block(block);
 
-	bitvector_clear(bitvector, blockno);
+	bitvector_set(bitvector, blockno);
 }
 
 
