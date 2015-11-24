@@ -453,7 +453,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 *
 		 * EXERCISE: Your code here */
 
-		if (f_pos - 2 > dir_oi->oi_size * OSPFS_DIRENTRY_SIZE) {
+		if ((f_pos - 2)* OSPFS_DIRENTRY_SIZE >= dir_oi->oi_size) {
 			r = 1;
 			break;
 		}
@@ -484,20 +484,28 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		entry_oi = ospfs_inode(od->od_ino);
 
 		if (od->od_ino != 0) {	
-			uint32_t od_name_len = 0;
-			uint32_t i = 0;
+			uint32_t od_name_len = strlen(od->od_name);
+/*			uint32_t i = 0;
 			for (; i < OSPFS_MAXNAMELEN; i++) {
 				if (od->od_name[i] != NULL) {
 					od_name_len++;
 				}
-			}
-
-			ok_so_far = filldir(dirent, od->od_name, od_name_len, f_pos, od->od_ino, entry_oi->oi_ftype);
-
-			if (ok_so_far >= 0) {
-				f_pos++;
-			}
+			}*/
+			uint32_t type;
+			switch(entry_oi->oi_ftype){
+				case OSPFS_FTYPE_DIR:
+					type  = DT_DIR;
+					break;
+				case OSPFS_FTYPE_REG:
+					type = DT_REG;
+					break;
+				case OSPFS_FTYPE_SYMLINK:
+					type = DT_LNK;
+					break;
+			}	
+			ok_so_far = filldir(dirent, od->od_name, od_name_len, f_pos, od->od_ino, type);	
 		}
+		f_pos++;
 	}
 
 	// Save the file position and return!
