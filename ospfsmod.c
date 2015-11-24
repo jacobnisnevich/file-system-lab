@@ -481,7 +481,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		/* EXERCISE: Your code here */
 
 		od = ospfs_inode_data(dir_oi, (f_pos - 2) * OSPFS_DIRENTRY_SIZE);
-		entry_oi = ospfs_inode(od->ino);
+		entry_oi = ospfs_inode(od->od_ino);
 
 		if (od->od_ino != 0) {	
 			uint32_t od_name_len = 0;
@@ -492,7 +492,7 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				}
 			}
 
-			ok_so_far = filldir(dirent, od->od_name, od_name_len, f_pos, od->ino, entry_oi->oi_ftype);
+			ok_so_far = filldir(dirent, od->od_name, od_name_len, f_pos, od->od_ino, entry_oi->oi_ftype);
 
 			if (ok_so_far >= 0) {
 				f_pos++;
@@ -883,6 +883,13 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 	// Change 'count' so we never read past the end of the file.
 	/* EXERCISE: Your code here */
 
+	// Make sure we arent trying to read more than is left in the file
+	size_t bytes_left_in_file = (size_t) oi->oi_size - *f_pos;
+	if (bytes_left_in_file > count)
+	{
+		count = bytes_left_in_file;
+	}
+
 	// Copy the data to user block by block
 	while (amount < count && retval >= 0) {
 		uint32_t blockno = ospfs_inode_blockno(oi, *f_pos);
@@ -902,8 +909,56 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		// into user space.
 		// Use variable 'n' to track number of bytes moved.
 		/* EXERCISE: Your code here */
-		retval = -EIO; // Replace these lines
-		goto done;
+		uint32_t offset = *f_pos % OSPFS_BLKSIZE;
+
+		if (offset != 0)
+		{
+			// We are reading from the middle of the block
+			if (count - amount <= OSPFS_BLKSIZE - offset)
+			{
+				// The file ends in the current block, only copy what is left
+				if (copy_to_user(buffer + offset, data, count - amount) != 0)
+				{
+					// Segmentation fault while copying
+					retval = -EFAULT;
+					goto done;
+				}
+				n = (uint32_t) count - amount;
+			}
+			else
+			{
+				// The file does not end in the current block
+				if (copy_to_user(buffer + offset, data, OSPFS_BLKSIZE - offset) != 0)
+				{
+					// Segmentation fault while copying
+					retval = -EFAULT;
+					goto done;
+				}
+				n = (uint32_t) OSPFS_BLKSIZE - offset;
+			}
+		}
+		else if (count - amount <= OSPFS_BLKSIZE)
+		{
+			// The file ends in this block, so only copy whats left
+			if (copy_to_user(buffer, data, count - amount) != 0)
+			{
+				// Segmentation fault while copying
+				retval = -EFAULT;
+				goto done;
+			}
+			n = (uint32_t) count - amount;
+		}
+		else
+		{
+			// The file does not end in this block, copy the whole thing
+			if (copy_to_user(buffer, data, OSPFS_BLKSIZE) != 0)
+			{
+				// Segmentation fault while copying
+				retval = -EFAULT;
+				goto done;
+			}
+			n = OSPFS_BLKSIZE;
+		}
 
 		buffer += n;
 		amount += n;

@@ -76,7 +76,7 @@ tarball-nocheck: realclean
 	$(V)mkdir $(DISTDIR)
 	$(V)tar cf - `ls | grep -v '^$(DISTDIR)\|.*\.qvm$$\|.*\.qcow2$$\|.*\.tar\.gz$$\|.*\.tar\.bz2$$\|^\.svn\|^\.git\|^CVS\|.*\.iso$$\|^binary$$\|^cache$$\|^chroot$$\|^config$$\|^\.stage$$'` | (cd $(DISTDIR) && tar xf -)
 	$(V)/bin/rm -rf `find $(DISTDIR) -name CVS -o -name .svn -print`
-	$(V)date > $(DISTDIR)/tarballstamp
+	#$(V)date > $(DISTDIR)/tarballstamp
 	$(V)tar cf $(DISTDIR).tar $(DISTDIR)
 	$(V)gzip $(DISTDIR).tar
 	$(V)/bin/rm -rf $(DISTDIR)
