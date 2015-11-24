@@ -580,7 +580,7 @@ allocate_block(void)
 
 	int i = OSPFS_FREEMAP_BLK;
 	for (; i < ospfs_super->os_nblocks; i++) {
-		if (bitvector_test(bitvector, i) == 0) { // If bit i is empty
+		if (bitvector_test(bitvector, i) == 1) { // If bit i is empty
 			bitvector_clear(bitvector, i);
 			return i;
 		}
