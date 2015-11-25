@@ -1452,9 +1452,14 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 		return PTR_ERR(new_dir_entry);
 	}
 
+	// Initialize directory entry
 	new_dir_entry->od_ino = src_dentry->d_inode->i_ino;
 	memcpy(new_dir_entry->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len);
 	new_dir_entry->od_name[dst_dentry->d_name.len] = 0;
+
+	// Update src_inode
+	src_inode = ospfs_inode(src_dentry->d_inode->i_ino);
+	src_inode->oi_nlink++;
 
 	return 0;
 }
@@ -1620,10 +1625,10 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	}
 
 	memset(new_inode, 0, sizeof(struct ospfs_inode));
-	new_inode->oi_size = dentry->d_name.len;
+	new_inode->oi_size = strlen(symname);
 	new_inode->oi_ftype = OSPFS_FTYPE_SYMLINK;
 	new_inode->oi_nlink = 1;
-	strcpy(new_inode->oi_symlink,symname);
+	strcpy(new_inode->oi_symlink, symname);
 
 	// Initialize the new directory entry
 	new_dir_entry->od_ino = entry_ino;
@@ -1642,6 +1647,77 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	}
 }
 
+// contains_question_colon(string, length)
+//   Returns true if string contains contains question and colon
+//
+//   Inputs: string -- string to check
+//           length -- length
+
+static int
+contains_question_colon(char* string, int length) {
+	int i = 0;
+	int contains_question = 0;
+	int contains_colon = 0;
+
+	for (; i < length; i++) {
+		if (string[i] == '?') {
+			contains_question = 1;
+		} else if (string[i] == ':') {
+			contains_colon = 1;
+		}
+	}
+
+	return (contains_colon && contains_colon);
+}
+
+// is_root_condition(string, length)
+//   Returns string if user is root
+//
+//   Inputs: string -- string to check
+//           length -- length
+
+static char*
+is_root_condition(char* string, int length) {
+	char* true_cond = kmalloc(length, GFP_ATOMIC);
+	int question_index = 0;
+	int colon_index = 0;
+
+	for (; i < length; i++) {
+		if (string[i] == '?') {
+			question_index = i;
+		} else if (string[i] == ':') {
+			colon_index = i;
+		}
+	}
+
+	memcpy(true_cond, string + question_index, colon_index - question_index + 1);
+	true_cond[colon_index - question_index] = 0;
+
+	return true_cond;
+}
+
+// not_root_condition(string, length)
+//   Returns string if user is root
+//
+//   Inputs: string -- string to check
+//           length -- length
+
+static char*
+not_root_condition(char* string, int length) {
+	char* false_cond = kmalloc(length, GFP_ATOMIC);
+	int colon_index = 0;
+
+	for (; i < length; i++) {
+		if (string[i] == ':') {
+			colon_index = i;
+		}
+	}
+
+	memcpy(false_cond, string + colon_index, length - colon_index + 1);
+	false_cond[length - colon_index] = 0;
+
+	return false_cond;
+}
 
 // ospfs_follow_link(dentry, nd)
 //   Linux calls this function to follow a symbolic link.
@@ -1663,7 +1739,23 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		(ospfs_symlink_inode_t *) ospfs_inode(dentry->d_inode->i_ino);
 	// Exercise: Your code here.
 
-	nd_set_link(nd, oi->oi_symlink);
+	if (contains_question_colon(oi->oi_symlink, oi->oi_size)) {
+		int is_root = !(current->uid);
+
+		if (is_root) {
+			char* true_cond = kmalloc(oi->oi_size, GFP_ATOMIC);
+			strcpy(true_cond, is_root_condition(oi->oi_symlink, oi->oi_size));
+
+			nd_set_link(nd, true_cond);
+		} else {
+			char* false_cond = kmalloc(oi->oi_size, GFP_ATOMIC);
+			strcpy(false_cond, not_root_condition(oi->oi_symlink, oi->oi_size));
+
+			nd_set_link(nd, false_cond);
+		}
+	} else {
+		nd_set_link(nd, oi->oi_symlink);
+	}
 	return (void *) 0;
 }
 
