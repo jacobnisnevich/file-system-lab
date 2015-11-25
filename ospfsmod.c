@@ -1444,7 +1444,8 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry = create_blank_direntry(dir_oi);
+	ospfs_direntry_t* new_dir_entry;
+	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
 	{
@@ -1502,7 +1503,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry = create_blank_direntry(dir_oi);
+	ospfs_direntry_t* new_dir_entry;
+	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
 	{
@@ -1589,7 +1591,8 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry = create_blank_direntry(dir_oi);
+	ospfs_direntry_t* new_dir_entry;
+	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
 	{
