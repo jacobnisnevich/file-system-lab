@@ -1433,6 +1433,7 @@ static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
+	ospfs_inode_t *src_inode;
 
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
@@ -1681,6 +1682,7 @@ is_root_condition(char* string, int length) {
 	char* true_cond = kmalloc(length, GFP_ATOMIC);
 	int question_index = 0;
 	int colon_index = 0;
+	int i = 0;
 
 	for (; i < length; i++) {
 		if (string[i] == '?') {
@@ -1706,6 +1708,7 @@ static char*
 not_root_condition(char* string, int length) {
 	char* false_cond = kmalloc(length, GFP_ATOMIC);
 	int colon_index = 0;
+	int i = 0;
 
 	for (; i < length; i++) {
 		if (string[i] == ':') {
