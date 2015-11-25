@@ -1620,7 +1620,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	memset(new_inode, 0, sizeof(struct ospfs_inode));
 	new_inode->oi_size = dentry->d_name.len;
 	new_inode->oi_ftype = OSPFS_FTYPE_SYMLINK;
-	new_inode->nlink = 1;
+	new_inode->oi_nlink = 1;
 	strcpy(new_inode->oi_symlink,symname);
 
 	// Initialize the new directory entry
