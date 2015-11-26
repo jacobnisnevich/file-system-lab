@@ -1150,53 +1150,22 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 		// Use variable 'n' to track number of bytes moved.
 		/* EXERCISE: Your code here */
 		uint32_t offset = *f_pos % OSPFS_BLKSIZE;
-		if (offset != 0)
+
+		if (count - amount <= OSPFS_BLKSIZE - offset)
 		{
-			// We are reading from the middle of the block
-			if (count - amount <= OSPFS_BLKSIZE - offset)
-			{
-				// The file ends in the current block, only copy what is left
-				if (copy_to_user(buffer + offset, data, count - amount) != 0)
-				{
-					// Segmentation fault while copying
-					retval = -EFAULT;
-					goto done;
-				}
-				n = (uint32_t) count - amount;
-			}
-			else
-			{
-				// The file does not end in the current block
-				if (copy_to_user(buffer + offset, data, OSPFS_BLKSIZE - offset) != 0)
-				{
-					// Segmentation fault while copying
-					retval = -EFAULT;
-					goto done;
-				}
-				n = (uint32_t) OSPFS_BLKSIZE - offset;
-			}
-		}
-		else if (count - amount <= OSPFS_BLKSIZE)
-		{
-			// The file ends in this block, so only copy whats left
-			if (copy_to_user(buffer, data, count - amount) != 0)
-			{
-				// Segmentation fault while copying
-				retval = -EFAULT;
-				goto done;
-			}
-			n = (uint32_t) count - amount;
+
+			n = count - amount;
 		}
 		else
 		{
-			// The file does not end in this block, copy the whole thing
-			if (copy_to_user(buffer, data, OSPFS_BLKSIZE) != 0)
-			{
-				// Segmentation fault while copying
-				retval = -EFAULT;
-				goto done;
-			}
-			n = OSPFS_BLKSIZE;
+			n = OSPFS_BLKSIZE - offset;
+		}
+
+		if (copy_to_user(buffer + offset, data, n) != 0)
+		{
+			// Segmentation fault while copying
+			retval = -EFAULT;
+			goto done;
 		}
 		buffer += n;
 		amount += n;
@@ -1277,21 +1246,17 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 
 		if ((OSPFS_BLKSIZE - offset) > (count - amount))
 		{
-			if (copy_from_user(data + offset, buffer, count - amount) != 0)
-			{
-				retval = -EFAULT;
-				goto done;
-			}
 			n = count - amount;
 		}
 		else
 		{
-			if (copy_from_user(data + offset, buffer, OSPFS_BLKSIZE - offset) != 0)
-			{
-				retval = -EFAULT;
-				goto done;
-			}
 			n = OSPFS_BLKSIZE - offset;
+		}
+
+		if (copy_from_user(data + offset, buffer, n) != 0)
+		{
+			retval = -EFAULT;
+			goto done;
 		}
 		buffer += n;
 		amount += n;
@@ -1530,17 +1495,23 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 		}
 		entry_ino++;
 	}
+	eprintk("Inode: %d \n", entry_ino);
 
 	if (entry_ino == ospfs_super->os_ninodes)
 	{
 		// Couldnt find an empty inode
 		return -ENOSPC;
 	}
-	memset(new_inode, 0, sizeof(struct ospfs_inode));
-	new_inode->oi_ftype = OSPFS_FTYPE_REG;
-	new_inode->oi_mode = mode;
 
-	// Initialize the new directory entry
+	memset(new_inode->oi_direct, 0, sizeof(new_inode->oi_direct[0] * OSPFS_NDIRECT));
+	new_inode->oi_ftype = OSPFS_FTYPE_REG;
+	new_inode->oi_size = 0;
+	new_inode->oi_mode = mode;	
+	new_inode->oi_indirect = 0;
+	new_inode->oi_indirect2 = 0;
+	new_inode->oi_nlink++;
+
+
 	new_dir_entry->od_ino = entry_ino;
 	memcpy(new_dir_entry->od_name, dentry->d_name.name, dentry->d_name.len);
 	new_dir_entry->od_name[dentry->d_name.len] = 0;
