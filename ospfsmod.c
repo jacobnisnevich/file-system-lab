@@ -755,7 +755,7 @@ add_block(ospfs_inode_t *oi)
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 	uint32_t *newblock;
-	uint32_t newblock_no;
+	uint32_t newblock_no = 0;
 	int i;
 	uint32_t* singly_block;
 	uint32_t* doubly_block;
@@ -763,118 +763,93 @@ add_block(ospfs_inode_t *oi)
 	// keep track of allocations to free in case of -ENOSPC
 	uint32_t allocated[2] = { 0, 0 };
 
-	if (n == OSPFS_NDIRECT + OSPFS_NINDIRECT)
+	newblock_no = allocate_block();
+	if (newblock_no == 0)
 	{
-		// A new doubly indirect block must be allocated
+		goto handle_nospc;
+	}
+
+	newblock = ospfs_block(newblock_no);
+
+	// Zero out the new block
+
+	for (i = 0; i < OSPFS_BLKSIZE; i++)
+	{
+		newblock[i] = 0;
+	}
+
+	if (indir_index(n) == -1)
+	{
+		// Uses the direct block
+		oi->oi_direct[direct_index(n)] = newblock_no;
+	}
+	else if (direct_index(n) == 0)
+	{
+		// Requires allocating a new indirect block
 		allocated[0] = allocate_block();
 		if (allocated[0] == 0)
 		{
-			// No space for the doubly indirect block
-			return -ENOSPC;
-		}
-		oi->oi_indirect2 = allocated[0];
-		doubly_block = ospfs_block(allocated[0]);
-
-		// Zero out the doubly indirect block
-		for (i = 0; i < OSPFS_NINDIRECT; i++)
-		{
-			doubly_block[i] = 0;
-		}
-	}
-	if ((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0)
-	{
-		// The new block is being added to a new singly indirect block,
-		// whether this be the singly indirect block or the second level
-		// of the doubly indirect block
-
-		allocated[1] = allocate_block();
-
-		if (allocated[1] == 0)
-		{
-			// free the doubly indirect block if it was allocated
-			if (allocated[0] != 0)
-			{
-				free_block(allocated[0]);
-			}
-			return -ENOSPC;
+			goto handle_nospc;
 		}
 
-		// Zero out the new indirect block
-		singly_block = ospfs_block(allocated[1]);
-		for (i = 0; i < OSPFS_NINDIRECT; i++)
-		{
-			singly_block[i] = 0;
-		}
-
-		// update oi to contain the singly indirect block where necessary
-		if (n == OSPFS_NDIRECT)
-		{
-			oi->oi_indirect = allocated[1];
-		}
-		else
-		{
-			doubly_block[(n- OSPFS_NDIRECT) / OSPFS_NINDIRECT] = allocated[1];
-		}
-	}
-	if ( n < OSPFS_NDIRECT + OSPFS_NINDIRECT + OSPFS_NINDIRECT * OSPFS_NINDIRECT)
-	{
-		// File is not full
-
-		// Allocate the actaul data block
-		newblock_no = allocate_block();
-		if (newblock_no == 0)
-		{
-			// Free any singly/doubly indirect blocks that were allocated
-			if (allocated[0] != 0)
-			{
-				free_block(allocated[0]);
-			}
-			if (allocated[1] != 0)
-			{
-				free_block(allocated[1]);
-			}
-			return -ENOSPC;
-		}
-
-		newblock = ospfs_block(newblock_no);
+		newblock = ospfs_block(allocated[0]);
 
 		// Zero out the new block
-		for (i = 0; i < OSPFS_BLKSIZE; i++)
+
+		for (i = 0; OSPFS_BLKSIZE; i++)
 		{
 			newblock[i] = 0;
 		}
+		newblock[0] = newblock_no;
 
-		// Add the new block to wherever it should go
-		if (n < OSPFS_NDIRECT)
+		if (indir2_index(n) == 0 && indir_index(n) == 0)
 		{
-			// Block is added to the direct blocks
-			oi->oi_direct[n] = newblock_no;
+			// Requires allocating the doubly indirect 
+			allocated[1] = allocate_block();
+			if (allocated[1] == 0)
+			{
+				goto handle_nospc;
+			}
+
+			newblock = ospfs_block(allocated[1]);
+
+			// Zero out the new block
+			for (i = 0; i < OSPFS_BLKSIZE; i++)
+			{
+				newblock[i] = 0;
+			}
+			newblock[0] = allocated[0];
+			oi->oi_indirect2 = allocated[1];
 		}
-		else if (allocated[1] != 0)
+		else if (indir2_index(n) == -1)
 		{
-			// Already found the singly indirect to add to
-			singly_block[0] = newblock_no;			
-		}
-		else if (n < OSPFS_NINDIRECT + OSPFS_NDIRECT)
-		{
-			singly_block = ospfs_block(oi->oi_indirect);
-			singly_block[n - OSPFS_NDIRECT] = newblock_no;
-		}
-		else if (n < OSPFS_NDIRECT + OSPFS_NINDIRECT + OSPFS_NINDIRECT * OSPFS_NINDIRECT)
-		{
-			doubly_block = ospfs_block(oi->oi_indirect2);
-			singly_block = ospfs_block(doubly_block[(n - OSPFS_NDIRECT - OSPFS_NINDIRECT) / OSPFS_NINDIRECT]);
-			singly_block[(n - OSPFS_NDIRECT) % OSPFS_NINDIRECT] = newblock_no;
+			// We allocated the singly indirect
+			oi->oi_indirect = allocated[0];
 		}
 		else
 		{
-			// file is full
-			return -EIO;
+			// We allocated an indirect block in the doubly indirect
+			ospfs_block(oi->oi_indirect2)[indir_index(n)] = allocated[0];
 		}
-		oi->oi_size += OSPFS_BLKSIZE;
-
 	}
-	return 0; 
+
+	oi->oi_size += OSPFS_BLKSIZE;
+	return 0;
+
+handle_nospc:
+	if (newblock_no != 0)
+	{
+		free_block(newblock_no);
+	}
+	if (allocated[0] != 0)
+	{
+		free_block(allocated[0]);
+	}
+	if (allocated[1] != 0)
+	{
+		free_block(allocated[1]);
+	}
+	return -ENOSPC;	
 }
 
 
@@ -905,28 +880,28 @@ remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
-	uint32_t next_size = n - 1;
+	n--; // account for zero based index
 
 	/* EXERCISE: Your code here */
 	uint32_t* singly_block;
 	uint32_t* doubly_block;
 	uint32_t to_delete;
 
-	if (next_size < OSPFS_NDIRECT)
+	if (n < OSPFS_NDIRECT)
 	{
 		// We are clearing one of the direct blocks;
-		to_delete = oi->oi_direct[next_size];
+		to_delete = oi->oi_direct[n];
 		free_block(to_delete);
 		oi->oi_direct[next_size] = 0;
 		oi->oi_size -= OSPFS_BLKSIZE;
 		return 0;
 	}
-	if ((next_size - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0)
+	if (direct_index(n) == 0)
 	{
 		// We have to deallocate a singly indirect block
-		if (next_size < OSPFS_NDIRECT + OSPFS_NINDIRECT)
+		if (indir2_index(n) == -1)
 		{
-			// clear the block being removed and deallocate
+			// We are deallocating the singly indirect block
 			singly_block = ospfs_block(oi->oi_indirect);
 			to_delete = singly_block[0];
 			free_block(to_delete);
@@ -941,7 +916,7 @@ remove_block(ospfs_inode_t *oi)
 			// We are deallocating a 2nd level singly indirect
 			// in the doubly indirect block
 			doubly_block = ospfs_block(oi->oi_indirect2);
-			uint32_t singly_num = (n - OSPFS_NDIRECT - OSPFS_NINDIRECT) % OSPFS_NINDIRECT;
+			uint32_t singly_num = indir_index(n);
 
 			singly_block = ospfs_block(doubly_block[singly_num]);
 
@@ -955,7 +930,7 @@ remove_block(ospfs_inode_t *oi)
 			free_block(to_delete);
 			doubly_block[singly_num] = 0;
 
-			if (next_size == OSPFS_NINDIRECT + OSPFS_NDIRECT)
+			if (indir_index(n) == 0)
 			{
 				// Free the doubly indirect block as well.
 				// The singly indirect blocks should have been freed by now
@@ -968,9 +943,9 @@ remove_block(ospfs_inode_t *oi)
 	else
 	{
 		// Remove from the middle of an indirect block
-		uint32_t singly_num = (n - OSPFS_NDIRECT) % OSPFS_NINDIRECT;
-		uint32_t offset = (next_size - OSPFS_NDIRECT) % OSPFS_NINDIRECT;
-		if (singly_num == 0)
+		uint32_t singly_num = indir_index(n);
+		uint32_t offset = direct_index(n);
+		if (indir2_index(n) == -1)
 		{
 			// Removing from the singly indirect block
 			singly_block = ospfs_block(oi->oi_indirect);
