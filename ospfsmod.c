@@ -892,7 +892,7 @@ remove_block(ospfs_inode_t *oi)
 		// We are clearing one of the direct blocks;
 		to_delete = oi->oi_direct[n];
 		free_block(to_delete);
-		oi->oi_direct[next_size] = 0;
+		oi->oi_direct[n] = 0;
 		oi->oi_size -= OSPFS_BLKSIZE;
 		return 0;
 	}
