@@ -880,12 +880,12 @@ remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
-	n--; // account for zero based index
 
 	/* EXERCISE: Your code here */
 	uint32_t* singly_block;
 	uint32_t* doubly_block;
 	uint32_t to_delete;
+	n--; // account for zero based index
 
 	if (n < OSPFS_NDIRECT)
 	{
@@ -1374,6 +1374,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 	/* EXERCISE: Your code here. */
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	ospfs_inode_t *src_inode;
+	ospfs_direntry_t* new_dir_entry;
 
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
@@ -1385,7 +1386,6 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry;
 	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
@@ -1441,6 +1441,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	uint32_t entry_ino = 0;
 	ospfs_inode_t *new_inode;
 	/* EXERCISE: Your code here. */
+	ospfs_direntry_t* new_dir_entry;
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
 		return -ENAMETOOLONG;
@@ -1451,7 +1452,6 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry;
 	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
@@ -1534,6 +1534,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	/* EXERCISE: Your code here. */
 	ospfs_symlink_inode_t *new_inode;
+	ospfs_direntry_t* new_dir_entry;
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
@@ -1545,7 +1546,6 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		return -EEXIST;
 	}
 
-	ospfs_direntry_t* new_dir_entry;
 	new_dir_entry = create_blank_direntry(dir_oi);
 
 	if (IS_ERR(new_dir_entry))
