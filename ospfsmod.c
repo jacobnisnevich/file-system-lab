@@ -829,7 +829,7 @@ add_block(ospfs_inode_t *oi)
 		else
 		{
 			// We allocated an indirect block in the doubly indirect
-			((uint32_t*) ospfs_block(oi->oi_indirect2))[indir_index(n - 1)] = allocated[0];
+			((uint32_t*) ospfs_block(oi->oi_indirect2))[indir_index(n)] = allocated[0];
 		}
 	}
 	else
@@ -838,12 +838,12 @@ add_block(ospfs_inode_t *oi)
 		if (indir2_index(n) == -1)
 		{
 			// In the singly indirect
-			((uint32_t*) ospfs_block(oi->oi_indirect))[direct_index(n - 1)] = newblock_no;
+			((uint32_t*) ospfs_block(oi->oi_indirect))[direct_index(n)] = newblock_no;
 		}
 		else
 		{
 			// In the doubly indirect
-			((uint32_t*) ospfs_block(((uint32_t*) ospfs_block(oi->oi_indirect2))[indir_index(n - 1)]))[direct_index(n - 1)] = newblock_no;
+			((uint32_t*) ospfs_block(((uint32_t*) ospfs_block(oi->oi_indirect2))[indir_index(n)]))[direct_index(n)] = newblock_no;
 		}
 	}
 	oi->oi_size += OSPFS_BLKSIZE;
