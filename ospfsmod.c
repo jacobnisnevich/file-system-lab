@@ -832,7 +832,20 @@ add_block(ospfs_inode_t *oi)
 			ospfs_block(oi->oi_indirect2)[indir_index(n)] = allocated[0];
 		}
 	}
-
+	else
+	{
+		// In the middle of an indirect block
+		if (indir2_index(n) == -1)
+		{
+			// In the singly indirect
+			ospfs_block(oi->oi_indirect)[direct_index(n)] = newblock_no;
+		}
+		else
+		{
+			// In the doubly indirect
+			ospfs_block(ospfs_block(oi->oi_indirect2)[indir_index(n)])[direct_index(n)] = newblock_no;
+		}
+	}
 	oi->oi_size += OSPFS_BLKSIZE;
 	return 0;
 
