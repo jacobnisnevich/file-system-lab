@@ -5,7 +5,7 @@ touch test/exist
 touch test/notexist 2>/dev/null
 ./ioctl -1
 
-if [ ! -e "test/existent" ]
+if [ ! -e "test/exist" ]
 then
 	echo "Error: Intended file not created"
 	exit 1

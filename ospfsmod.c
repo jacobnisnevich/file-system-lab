@@ -1544,7 +1544,6 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 		}
 		entry_ino++;
 	}
-	eprintk("Inode: %d \n", entry_ino);
 
 	if (entry_ino == ospfs_super->os_ninodes)
 	{
