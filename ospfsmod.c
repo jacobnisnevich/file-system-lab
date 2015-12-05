@@ -43,6 +43,34 @@ static ospfs_super_t * const ospfs_super =
 static int change_size(ospfs_inode_t *oi, uint32_t want_size);
 static ospfs_direntry_t *find_direntry(ospfs_inode_t *dir_oi, const char *name, int namelen);
 
+/*****************************************************************************
+* OSPFS CRASH TESTING FUNCTIONS
+*
+*/
+
+static int nwrites_to_crash = -1;
+
+int 
+ospfs_ioctl(struct inode *inode, struct file *filp, unsigned int ioctl_num, unsigned long ioctl_param) 
+{
+	if (ioctl_num == OSPFS_NWRITE) {
+		nwrites_to_crash = ioctl_param;
+		return 0;
+	} else {
+		return -ENOTTY;
+	}
+}
+
+static int
+check_nwrites() {
+	if (nwrites_to_crash == 0) {
+		return 1;
+	} else if (nwrites_to_crash > 0) {
+		nwrites_to_crash--;
+	}
+
+	return 0;
+}
 
 /*****************************************************************************
  * FILE SYSTEM OPERATIONS STRUCTURES
@@ -103,6 +131,10 @@ static struct super_operations ospfs_superblock_ops;
 static inline void
 bitvector_set(void *vector, int i)
 {
+	if (check_nwrites()) {
+		return;
+	}
+
 	((uint32_t *) vector) [i / 32] |= (1 << (i % 32));
 }
 
@@ -110,6 +142,10 @@ bitvector_set(void *vector, int i)
 static inline void
 bitvector_clear(void *vector, int i)
 {
+	if (check_nwrites()) {
+		return;
+	}
+
 	((uint32_t *) vector) [i / 32] &= ~(1 << (i % 32));
 }
 
@@ -533,6 +569,10 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 	ospfs_inode_t *dir_oi = ospfs_inode(dentry->d_parent->d_inode->i_ino);
 	int entry_off;
 	ospfs_direntry_t *od;
+
+	if (check_nwrites()) {
+		return;
+	}
 
 	od = NULL; // silence compiler warning; entry_off indicates when !od
 	for (entry_off = 0; entry_off < dir_oi->oi_size;
@@ -1023,7 +1063,11 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	int r = 0;
 
 	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
+	    /* EXERCISE: Your code here */
+	    if (check_nwrites()) {
+			return;
+		}
+
 		if (add_block(oi) == -ENOSPC)
 		{
 			new_size = old_size;
@@ -1031,7 +1075,11 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 		}
 	}
 	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
+	    /* EXERCISE: Your code here */
+	    if (check_nwrites()) {
+			return;
+		}
+
 		if (remove_block(oi) == -EIO)
 		{
 			r = -EIO;
@@ -1218,6 +1266,10 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		uint32_t n;
 		char *data;
 
+		if (check_nwrites()) {
+			return;
+		}
+
 		if (blockno == 0) {
 			retval = -EIO;
 			goto done;
@@ -1389,6 +1441,10 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 	ospfs_inode_t *src_inode;
 	ospfs_direntry_t* new_dir_entry;
 
+	if (check_nwrites()) {
+		return;
+	}
+
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
 		return -ENAMETOOLONG;
@@ -1455,6 +1511,11 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	ospfs_inode_t *new_inode;
 	/* EXERCISE: Your code here. */
 	ospfs_direntry_t* new_dir_entry;
+
+	if (check_nwrites()) {
+		return;
+	}
+
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
 		return -ENAMETOOLONG;
@@ -1548,6 +1609,10 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	/* EXERCISE: Your code here. */
 	ospfs_symlink_inode_t *new_inode;
 	ospfs_direntry_t* new_dir_entry;
+
+	if (check_nwrites()) {
+		return;
+	}
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
@@ -1738,7 +1803,8 @@ static struct inode_operations ospfs_reg_inode_ops = {
 static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
-	.write		= ospfs_write
+	.write		= ospfs_write,
+	.ioctl		= ospfs_ioctl
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
@@ -1751,7 +1817,8 @@ static struct inode_operations ospfs_dir_inode_ops = {
 
 static struct file_operations ospfs_dir_file_ops = {
 	.read		= generic_read_dir,
-	.readdir	= ospfs_dir_readdir
+	.readdir	= ospfs_dir_readdir,
+	.ioctl		= ospfs_ioctl
 };
 
 static struct inode_operations ospfs_symlink_inode_ops = {

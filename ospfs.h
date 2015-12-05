@@ -2,6 +2,8 @@
 #define OSPFS_H
 // OSPFS Constants and Structure Definitions
 
+#define OSPFS_NWRITE        9999
+
 /*****************************************************************************
  * BLOCKS
  *
@@ -13,7 +15,6 @@
 #define OSPFS_BLKSIZE_BITS  10
 #define OSPFS_BLKSIZE       (1 << OSPFS_BLKSIZE_BITS) /* == 1024 */
 #define OSPFS_BLKBITSIZE    (OSPFS_BLKSIZE * 8)
-
 
 /*****************************************************************************
  * FILE SYSTEM LAYOUT
