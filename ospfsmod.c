@@ -571,7 +571,7 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 	ospfs_direntry_t *od;
 
 	if (check_nwrites()) {
-		return;
+		return 0;
 	}
 
 	od = NULL; // silence compiler warning; entry_off indicates when !od
@@ -1065,7 +1065,7 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
 	    /* EXERCISE: Your code here */
 	    if (check_nwrites()) {
-			return;
+			return 0;
 		}
 
 		if (add_block(oi) == -ENOSPC)
@@ -1077,7 +1077,7 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) {
 	    /* EXERCISE: Your code here */
 	    if (check_nwrites()) {
-			return;
+			return 0;
 		}
 
 		if (remove_block(oi) == -EIO)
@@ -1267,7 +1267,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		char *data;
 
 		if (check_nwrites()) {
-			return;
+			return count;
 		}
 
 		if (blockno == 0) {
@@ -1442,7 +1442,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 	ospfs_direntry_t* new_dir_entry;
 
 	if (check_nwrites()) {
-		return;
+		return 0;
 	}
 
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
@@ -1513,7 +1513,7 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	ospfs_direntry_t* new_dir_entry;
 
 	if (check_nwrites()) {
-		return;
+		return 0;
 	}
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
@@ -1611,7 +1611,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	ospfs_direntry_t* new_dir_entry;
 
 	if (check_nwrites()) {
-		return;
+		return 0;
 	}
 
 	if (dentry->d_name.len > OSPFS_MAXNAMELEN)

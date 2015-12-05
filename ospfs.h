@@ -2,7 +2,7 @@
 #define OSPFS_H
 // OSPFS Constants and Structure Definitions
 
-#define OSPFS_NWRITE        9999
+#define OSPFS_NWRITE        1000
 
 /*****************************************************************************
  * BLOCKS

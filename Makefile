@@ -32,7 +32,7 @@ obj-m		+= ospfs.o
 ospfs-objs	:= ospfsmod.o fsimg.o
 BASEFILES	:= $(shell find base 2>/dev/null | grep -v '[ 	]')
 
-ospfs.ko all: fsimg.c truncate always
+ospfs.ko all: fsimg.c truncate ioctl always
 	$(MAKE) -C $(KERNELPATH) M=$(shell pwd) modules
 
 install: ospfs.ko
@@ -53,6 +53,9 @@ fsimgtoc: fsimgtoc.c
 	$(CC) $< -o $@
 
 truncate: truncate.c
+	$(CC) $< -o $@
+
+ioctl: ioctl.c
 	$(CC) $< -o $@
 
 DISTDIR := lab3-$(USER)
@@ -83,7 +86,7 @@ tarball-nocheck: realclean
 
 clean:
 	@echo + clean
-	$(V)-rm -f fs.img fsimg.c fsimgtoc ospfsformat truncate *.o *.ko *.mod.c
+	$(V)-rm -f fs.img fsimg.c fsimgtoc ospfsformat truncate ioctl *.o *.ko *.mod.c
 	$(V)-rm -f .version .*.o.flags .*.o.d .*.o.cmd .*.ko.cmd
 	$(V)-rm -rf .tmp_versions
 
